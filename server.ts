@@ -29,24 +29,32 @@ function getGeminiClient(): GoogleGenAI {
 }
 
 /**
- * Robust Gemini model invoker with multi-model fallback (2.5-flash -> 3.7-flash -> 3.1-pro-preview)
+ * Robust Gemini model invoker with multi-model fallback and transient error retry
  */
 async function generateContentWithFallback(ai: GoogleGenAI, contentPayload: any) {
-  const candidateModels = ["gemini-2.5-flash", "gemini-3.7-flash"];
+  const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.7-flash"];
   let lastError: any = null;
 
   for (const model of candidateModels) {
-    try {
-      const response = await ai.models.generateContent({
-        ...contentPayload,
-        model,
-      });
-      if (response && response.text) {
-        return response;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          ...contentPayload,
+          model,
+        });
+        if (response && response.text) {
+          return response;
+        }
+      } catch (err: any) {
+        lastError = err;
+        const isTransient = err.status === 503 || err.status === 429 || String(err.message || "").includes("high demand") || String(err.message || "").includes("UNAVAILABLE");
+        if (isTransient && attempt === 0) {
+          // Momentary pause before retry
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+        break; // proceed to next candidate model
       }
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`Model ${model} request throttled or unavailable (${err.status || err.message}), attempting fallback...`);
     }
   }
 
@@ -238,8 +246,8 @@ Provide concise, highly authoritative, mathematically accurate engineering answe
 
       const lastUserMsg = messages[messages.length - 1]?.content || "Hello";
 
-      // Try gemini-2.5-flash first, fallback to gemini-3.7-flash
-      const candidateModels = ["gemini-2.5-flash", "gemini-3.7-flash"];
+      // Try gemini-2.5-flash first, fallback to gemini-2.5-flash-lite and gemini-3.7-flash
+      const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.7-flash"];
       let responseText = "";
 
       for (const model of candidateModels) {

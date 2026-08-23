@@ -1,0 +1,8 @@
+{
+  "name": "IndusIntel - Industrial Product Intelligence",
+  "description": "AI-powered product intelligence platform for industrial commerce: automated extraction, ETIM/UNSPSC taxonomy mapping, unit normalization, traceable multi-modal validation, and HITL enrichment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

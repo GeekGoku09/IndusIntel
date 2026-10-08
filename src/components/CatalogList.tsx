@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Search,
   Filter,
@@ -22,6 +22,16 @@ interface CatalogListProps {
   onNewExtraction: () => void;
 }
 
+// ⚡ Bolt Optimization: Static sectors array defined outside component to avoid re-allocating on every render
+const SECTORS: IndustrySector[] = [
+  'Fluid Power & Pneumatics',
+  'Pumps & Fluid Handling',
+  'Motors & Automation Drives',
+  'Process Valves & Actuation',
+  'Bearings & Power Transmission',
+  'Sensors & Industrial IoT'
+];
+
 export const CatalogList: React.FC<CatalogListProps> = ({
   products,
   onSelectProduct,
@@ -30,35 +40,41 @@ export const CatalogList: React.FC<CatalogListProps> = ({
   const [search, setSearch] = useState<string>('');
   const [sectorFilter, setSectorFilter] = useState<string>('ALL');
 
-  const filtered = (products || []).filter(p => {
-    const matchesSector = sectorFilter === 'ALL' || p.sector === sectorFilter;
+  // ⚡ Bolt Optimization: Calculate sector counts in a single O(N) pass with useMemo
+  // avoids running products.filter() S times (O(S * N)) on every render
+  const sectorCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of products || []) {
+      if (p.sector) {
+        counts[p.sector] = (counts[p.sector] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [products]);
+
+  // ⚡ Bolt Optimization: Memoize search query & sector filter calculation to prevent wasteful recalculations
+  const filtered = useMemo(() => {
     const q = (search || '').trim().toLowerCase();
-    if (!q) return matchesSector;
+    return (products || []).filter(p => {
+      const matchesSector = sectorFilter === 'ALL' || p.sector === sectorFilter;
+      if (!q) return matchesSector;
 
-    const name = (p.productName || '').toLowerCase();
-    const mpn = (p.mpn || '').toLowerCase();
-    const mfg = (p.manufacturer || '').toLowerCase();
-    const etim = (p.etimClassCode || '').toLowerCase();
-    const sku = (p.sku || '').toLowerCase();
+      const name = (p.productName || '').toLowerCase();
+      const mpn = (p.mpn || '').toLowerCase();
+      const mfg = (p.manufacturer || '').toLowerCase();
+      const etim = (p.etimClassCode || '').toLowerCase();
+      const sku = (p.sku || '').toLowerCase();
 
-    const matchesSearch =
-      name.includes(q) ||
-      mpn.includes(q) ||
-      mfg.includes(q) ||
-      etim.includes(q) ||
-      sku.includes(q);
+      const matchesSearch =
+        name.includes(q) ||
+        mpn.includes(q) ||
+        mfg.includes(q) ||
+        etim.includes(q) ||
+        sku.includes(q);
 
-    return matchesSector && matchesSearch;
-  });
-
-  const sectors: IndustrySector[] = [
-    'Fluid Power & Pneumatics',
-    'Pumps & Fluid Handling',
-    'Motors & Automation Drives',
-    'Process Valves & Actuation',
-    'Bearings & Power Transmission',
-    'Sensors & Industrial IoT'
-  ];
+      return matchesSector && matchesSearch;
+    });
+  }, [products, sectorFilter, search]);
 
   return (
     <div id="catalog-list" className="space-y-6">
@@ -105,7 +121,7 @@ export const CatalogList: React.FC<CatalogListProps> = ({
           >
             All Sectors ({products.length})
           </button>
-          {sectors.map((sec) => (
+          {SECTORS.map((sec) => (
             <button
               key={sec}
               onClick={() => setSectorFilter(sec)}
@@ -115,7 +131,7 @@ export const CatalogList: React.FC<CatalogListProps> = ({
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
-              {sec} ({products.filter(p => p.sector === sec).length})
+              {sec} ({sectorCounts[sec] || 0})
             </button>
           ))}
         </div>

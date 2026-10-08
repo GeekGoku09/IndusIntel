@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -34,26 +34,41 @@ export const HITLReviewQueue: React.FC<HITLReviewQueueProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeDiffProduct, setActiveDiffProduct] = useState<IndustrialProduct | null>(null);
 
-  const filteredProducts = (products || []).filter(p => {
-    const matchesStatus = statusFilter === 'ALL' || p.reviewStatus === statusFilter;
+  // ⚡ Bolt Optimization: Compute status counts in a single O(N) pass with useMemo
+  // avoids calling products.filter() multiple times in JSX on every render
+  const statusCounts = useMemo(() => {
+    const counts = { FLAGGED_CONFLICT: 0, AUTO_APPROVED: 0, VERIFIED_READY: 0 };
+    for (const p of products || []) {
+      if (p.reviewStatus in counts) {
+        counts[p.reviewStatus as keyof typeof counts]++;
+      }
+    }
+    return counts;
+  }, [products]);
+
+  // ⚡ Bolt Optimization: Memoize filtered products list
+  const filteredProducts = useMemo(() => {
     const q = (searchQuery || '').trim().toLowerCase();
-    if (!q) return matchesStatus;
+    return (products || []).filter(p => {
+      const matchesStatus = statusFilter === 'ALL' || p.reviewStatus === statusFilter;
+      if (!q) return matchesStatus;
 
-    const name = (p.productName || '').toLowerCase();
-    const mpn = (p.mpn || '').toLowerCase();
-    const mfg = (p.manufacturer || '').toLowerCase();
-    const sku = (p.sku || '').toLowerCase();
-    const etim = (p.etimClassCode || '').toLowerCase();
+      const name = (p.productName || '').toLowerCase();
+      const mpn = (p.mpn || '').toLowerCase();
+      const mfg = (p.manufacturer || '').toLowerCase();
+      const sku = (p.sku || '').toLowerCase();
+      const etim = (p.etimClassCode || '').toLowerCase();
 
-    const matchesSearch =
-      name.includes(q) ||
-      mpn.includes(q) ||
-      mfg.includes(q) ||
-      sku.includes(q) ||
-      etim.includes(q);
+      const matchesSearch =
+        name.includes(q) ||
+        mpn.includes(q) ||
+        mfg.includes(q) ||
+        sku.includes(q) ||
+        etim.includes(q);
 
-    return matchesStatus && matchesSearch;
-  });
+      return matchesStatus && matchesSearch;
+    });
+  }, [products, statusFilter, searchQuery]);
 
   const toggleSelectAll = () => {
     if (selectedIds.length === filteredProducts.length) {
@@ -133,7 +148,7 @@ export const HITLReviewQueue: React.FC<HITLReviewQueueProps> = ({
             }`}
           >
             <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-            <span>Flagged Conflicts ({products.filter(p => p.reviewStatus === 'FLAGGED_CONFLICT').length})</span>
+            <span>Flagged Conflicts ({statusCounts.FLAGGED_CONFLICT})</span>
           </button>
 
           <button
@@ -145,7 +160,7 @@ export const HITLReviewQueue: React.FC<HITLReviewQueueProps> = ({
             }`}
           >
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Auto-Approved ({products.filter(p => p.reviewStatus === 'AUTO_APPROVED').length})</span>
+            <span>Auto-Approved ({statusCounts.AUTO_APPROVED})</span>
           </button>
 
           <button
@@ -157,7 +172,7 @@ export const HITLReviewQueue: React.FC<HITLReviewQueueProps> = ({
             }`}
           >
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Verified Ready ({products.filter(p => p.reviewStatus === 'VERIFIED_READY').length})</span>
+            <span>Verified Ready ({statusCounts.VERIFIED_READY})</span>
           </button>
         </div>
 

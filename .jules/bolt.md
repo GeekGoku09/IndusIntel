@@ -1,0 +1,3 @@
+## 2025-05-10 - Memoizing Render-Loop Aggregations
+**Learning:** In React components with filter pills or sector counters (like `CatalogList`), calling `products.filter(p => p.sector === sec)` inside `.map()` runs $O(N)$ filter operations for every button on every render (e.g. on every search box keystroke). Pre-aggregating counts into a single $O(N)$ object map with `useMemo` turns $S \times N$ array scans into $O(1)$ property lookups.
+**Action:** When displaying count badges next to category/sector filter buttons, aggregate counts in a single `useMemo` pass rather than calling `.filter()` inside the button map loop.

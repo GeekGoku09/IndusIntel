@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Cpu,
   Layers,
@@ -29,13 +29,32 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCopilot,
   isAiProcessing = false
 }) => {
-  const safeProducts = products || [];
-  const totalProducts = safeProducts.length;
-  const autoApproved = safeProducts.filter(p => p.reviewStatus === 'AUTO_APPROVED' || p.reviewStatus === 'VERIFIED_READY').length;
-  const flaggedConflicts = safeProducts.filter(p => p.reviewStatus === 'FLAGGED_CONFLICT').length;
-  const avgCompleteness = Math.round(
-    safeProducts.reduce((acc, p) => acc + (p.completenessScore || 0), 0) / (totalProducts || 1)
-  );
+  // Performance optimization: Single O(N) pass to calculate summary metrics
+  // instead of running multiple .filter() and .reduce() array iterations on every render.
+  const { totalProducts, autoApproved, flaggedConflicts, avgCompleteness } = useMemo(() => {
+    const safeProducts = products || [];
+    const total = safeProducts.length;
+    let auto = 0;
+    let flagged = 0;
+    let completenessSum = 0;
+
+    for (const p of safeProducts) {
+      if (p.reviewStatus === 'AUTO_APPROVED' || p.reviewStatus === 'VERIFIED_READY') {
+        auto++;
+      } else if (p.reviewStatus === 'FLAGGED_CONFLICT') {
+        flagged++;
+      }
+      completenessSum += p.completenessScore || 0;
+    }
+
+    const avg = total > 0 ? Math.round(completenessSum / total) : 0;
+    return {
+      totalProducts: total,
+      autoApproved: auto,
+      flaggedConflicts: flagged,
+      avgCompleteness: avg
+    };
+  }, [products]);
 
   return (
     <header id="app-header" className="bg-slate-900 border-b border-slate-800 text-slate-100 sticky top-0 z-40 shadow-lg">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Search,
   Filter,
@@ -30,26 +30,38 @@ export const CatalogList: React.FC<CatalogListProps> = ({
   const [search, setSearch] = useState<string>('');
   const [sectorFilter, setSectorFilter] = useState<string>('ALL');
 
-  const filtered = (products || []).filter(p => {
-    const matchesSector = sectorFilter === 'ALL' || p.sector === sectorFilter;
+  // Performance optimization: Pre-compute sector product counts in a single O(N) pass
+  // to avoid repeated O(S*N) array filter scans on every render/keystroke.
+  const sectorCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of products || []) {
+      if (p.sector) {
+        counts[p.sector] = (counts[p.sector] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [products]);
+
+  // Performance optimization: Memoize filtered products list and short-circuit early
+  // on sector mismatch to avoid expensive string lowercasing and matching.
+  const filtered = useMemo(() => {
     const q = (search || '').trim().toLowerCase();
-    if (!q) return matchesSector;
+    const safeProducts = products || [];
 
-    const name = (p.productName || '').toLowerCase();
-    const mpn = (p.mpn || '').toLowerCase();
-    const mfg = (p.manufacturer || '').toLowerCase();
-    const etim = (p.etimClassCode || '').toLowerCase();
-    const sku = (p.sku || '').toLowerCase();
+    return safeProducts.filter(p => {
+      const matchesSector = sectorFilter === 'ALL' || p.sector === sectorFilter;
+      if (!matchesSector) return false;
+      if (!q) return true;
 
-    const matchesSearch =
-      name.includes(q) ||
-      mpn.includes(q) ||
-      mfg.includes(q) ||
-      etim.includes(q) ||
-      sku.includes(q);
-
-    return matchesSector && matchesSearch;
-  });
+      return (
+        (p.productName || '').toLowerCase().includes(q) ||
+        (p.mpn || '').toLowerCase().includes(q) ||
+        (p.manufacturer || '').toLowerCase().includes(q) ||
+        (p.etimClassCode || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q)
+      );
+    });
+  }, [products, sectorFilter, search]);
 
   const sectors: IndustrySector[] = [
     'Fluid Power & Pneumatics',
@@ -115,7 +127,7 @@ export const CatalogList: React.FC<CatalogListProps> = ({
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
-              {sec} ({products.filter(p => p.sector === sec).length})
+              {sec} ({sectorCounts[sec] || 0})
             </button>
           ))}
         </div>

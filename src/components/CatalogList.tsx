@@ -30,8 +30,8 @@ export const CatalogList: React.FC<CatalogListProps> = ({
   const [search, setSearch] = useState<string>('');
   const [sectorFilter, setSectorFilter] = useState<string>('ALL');
 
-  // ⚡ Bolt Optimization: Calculate sector counts in a single O(N) pass memoized by `products` array
-  // to prevent re-running `products.filter()` for each sector pill on every re-render (e.g. keystrokes).
+  // Performance optimization: Pre-compute sector product counts in a single O(N) pass
+  // to avoid repeated O(S*N) array filter scans on every render/keystroke.
   const sectorCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const p of products || []) {
@@ -42,28 +42,24 @@ export const CatalogList: React.FC<CatalogListProps> = ({
     return counts;
   }, [products]);
 
-  // ⚡ Bolt Optimization: Memoize search and sector filtering so it only recalculates
-  // when products, sectorFilter, or search query changes.
+  // Performance optimization: Memoize filtered products list and short-circuit early
+  // on sector mismatch to avoid expensive string lowercasing and matching.
   const filtered = useMemo(() => {
     const q = (search || '').trim().toLowerCase();
-    return (products || []).filter(p => {
+    const safeProducts = products || [];
+
+    return safeProducts.filter(p => {
       const matchesSector = sectorFilter === 'ALL' || p.sector === sectorFilter;
-      if (!q) return matchesSector;
+      if (!matchesSector) return false;
+      if (!q) return true;
 
-      const name = (p.productName || '').toLowerCase();
-      const mpn = (p.mpn || '').toLowerCase();
-      const mfg = (p.manufacturer || '').toLowerCase();
-      const etim = (p.etimClassCode || '').toLowerCase();
-      const sku = (p.sku || '').toLowerCase();
-
-      const matchesSearch =
-        name.includes(q) ||
-        mpn.includes(q) ||
-        mfg.includes(q) ||
-        etim.includes(q) ||
-        sku.includes(q);
-
-      return matchesSector && matchesSearch;
+      return (
+        (p.productName || '').toLowerCase().includes(q) ||
+        (p.mpn || '').toLowerCase().includes(q) ||
+        (p.manufacturer || '').toLowerCase().includes(q) ||
+        (p.etimClassCode || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q)
+      );
     });
   }, [products, sectorFilter, search]);
 

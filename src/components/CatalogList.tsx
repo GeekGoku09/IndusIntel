@@ -30,8 +30,7 @@ export const CatalogList: React.FC<CatalogListProps> = ({
   const [search, setSearch] = useState<string>('');
   const [sectorFilter, setSectorFilter] = useState<string>('ALL');
 
-  // Performance optimization: Pre-compute sector product counts in a single O(N) pass
-  // to avoid repeated O(S*N) array filter scans on every render/keystroke.
+  // Performance Optimization: Calculate sector counts in a single O(N) pass instead of O(K*N) on every render
   const sectorCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const p of products || []) {

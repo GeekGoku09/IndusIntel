@@ -41,27 +41,24 @@ export const CatalogList: React.FC<CatalogListProps> = ({
     return counts;
   }, [products]);
 
-  // Performance Optimization: Memoize filtered product calculation to avoid unnecessary re-filtering on unrelated re-renders
+  // Performance optimization: Memoize filtered products list and short-circuit early
+  // on sector mismatch to avoid expensive string lowercasing and matching.
   const filtered = useMemo(() => {
     const q = (search || '').trim().toLowerCase();
-    return (products || []).filter(p => {
+    const safeProducts = products || [];
+
+    return safeProducts.filter(p => {
       const matchesSector = sectorFilter === 'ALL' || p.sector === sectorFilter;
-      if (!q) return matchesSector;
+      if (!matchesSector) return false;
+      if (!q) return true;
 
-      const name = (p.productName || '').toLowerCase();
-      const mpn = (p.mpn || '').toLowerCase();
-      const mfg = (p.manufacturer || '').toLowerCase();
-      const etim = (p.etimClassCode || '').toLowerCase();
-      const sku = (p.sku || '').toLowerCase();
-
-      const matchesSearch =
-        name.includes(q) ||
-        mpn.includes(q) ||
-        mfg.includes(q) ||
-        etim.includes(q) ||
-        sku.includes(q);
-
-      return matchesSector && matchesSearch;
+      return (
+        (p.productName || '').toLowerCase().includes(q) ||
+        (p.mpn || '').toLowerCase().includes(q) ||
+        (p.manufacturer || '').toLowerCase().includes(q) ||
+        (p.etimClassCode || '').toLowerCase().includes(q) ||
+        (p.sku || '').toLowerCase().includes(q)
+      );
     });
   }, [products, sectorFilter, search]);
 

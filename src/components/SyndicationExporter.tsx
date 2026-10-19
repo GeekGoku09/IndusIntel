@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Share2,
   Download,
@@ -38,7 +38,9 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
-  const getExportOutput = (): string => {
+  // Performance Optimization: Memoize formatted export output (BMEcat XML, ETIM JSON, CSV, JSON-LD)
+  // to avoid expensive string building, array mapping, and JSON serialization on unrelated state changes (e.g. copied, downloadNotice).
+  const exportOutput = useMemo(() => {
     if (!selectedProduct) return '';
 
     const manufacturer = selectedProduct.manufacturer || 'Industrial Brand';
@@ -177,17 +179,17 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
     ];
 
     return [headers.join(','), row.join(',')].join('\n');
-  };
+  }, [selectedProduct, exportFormat]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(getExportOutput());
+    navigator.clipboard.writeText(exportOutput);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
     if (!selectedProduct) return;
-    const content = getExportOutput();
+    const content = exportOutput;
     let extension = 'json';
     let mime = 'application/json';
 
@@ -344,7 +346,7 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
         </div>
 
         <pre className="p-6 text-xs font-mono text-cyan-300 overflow-x-auto max-h-[500px] leading-relaxed select-all">
-          {getExportOutput() || '// No product selected'}
+          {exportOutput || '// No product selected'}
         </pre>
       </div>
     </div>

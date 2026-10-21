@@ -34,6 +34,9 @@ export const HITLReviewQueue: React.FC<HITLReviewQueueProps> = ({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeDiffProduct, setActiveDiffProduct] = useState<IndustrialProduct | null>(null);
 
+  // Performance optimization: Memoize Set for O(1) membership checks during table render
+  const selectedIdsSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+
   // Performance optimization: Single-pass status count computation to avoid repeated O(N) array filters.
   const statusCounts = useMemo(() => {
     const counts = { FLAGGED_CONFLICT: 0, AUTO_APPROVED: 0, VERIFIED_READY: 0 };
@@ -212,7 +215,7 @@ export const HITLReviewQueue: React.FC<HITLReviewQueueProps> = ({
                   <td className="p-3 text-center">
                     <input
                       type="checkbox"
-                      checked={selectedIds.includes(prod.id)}
+                      checked={selectedIdsSet.has(prod.id)}
                       onChange={() => toggleSelectOne(prod.id)}
                       className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
                     />

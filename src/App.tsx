@@ -50,9 +50,10 @@ export default function App() {
   };
 
   const handleBulkApprove = (productIds: string[]) => {
+    const approvedSet = new Set(productIds);
     setProducts((prev) =>
       prev.map((p) =>
-        productIds.includes(p.id) ? { ...p, reviewStatus: 'VERIFIED_READY' } : p
+        approvedSet.has(p.id) ? { ...p, reviewStatus: 'VERIFIED_READY' } : p
       )
     );
   };

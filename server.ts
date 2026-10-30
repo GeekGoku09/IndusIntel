@@ -12,6 +12,15 @@ const PORT = 3000;
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
+// Security Headers Middleware (Defense-in-depth against clickjacking, MIME sniffing, etc.)
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "0");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
 // Server-side Gemini client initialization with mandatory User-Agent header
 let aiClient: GoogleGenAI | null = null;
 function getGeminiClient(): GoogleGenAI {

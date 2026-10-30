@@ -63,6 +63,17 @@ export const EngineeringCopilotModal: React.FC<EngineeringCopilotModalProps> = (
     }
   }, [messages, isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleSend = async (textToSend?: string) => {
@@ -139,7 +150,12 @@ export const EngineeringCopilotModal: React.FC<EngineeringCopilotModalProps> = (
 
   return (
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col h-[680px] max-h-[90vh] overflow-hidden text-slate-100 animate-in fade-in zoom-in duration-150">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="copilot-modal-title"
+        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl max-w-2xl w-full flex flex-col h-[680px] max-h-[90vh] overflow-hidden text-slate-100 animate-in fade-in zoom-in duration-150"
+      >
         {/* Header */}
         <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -147,7 +163,7 @@ export const EngineeringCopilotModal: React.FC<EngineeringCopilotModalProps> = (
               <MessageSquareCode className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white flex items-center gap-2">
+              <h3 id="copilot-modal-title" className="font-bold text-sm text-white flex items-center gap-2">
                 Engineering AI Copilot
                 <span className="px-2 py-0.2 rounded bg-cyan-500/20 text-cyan-300 text-[10px] font-mono border border-cyan-500/30">
                   Gemini 3.7 Industrial
@@ -163,6 +179,7 @@ export const EngineeringCopilotModal: React.FC<EngineeringCopilotModalProps> = (
 
           <button
             onClick={onClose}
+            aria-label="Close dialog"
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -196,6 +213,7 @@ export const EngineeringCopilotModal: React.FC<EngineeringCopilotModalProps> = (
                   {m.role === 'assistant' && (
                     <button
                       onClick={() => handleCopy(m.content, m.id)}
+                      aria-label={copiedId === m.id ? 'Copied to clipboard' : 'Copy response to clipboard'}
                       className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 hover:text-slate-200"
                     >
                       {copiedId === m.id ? (
@@ -203,7 +221,7 @@ export const EngineeringCopilotModal: React.FC<EngineeringCopilotModalProps> = (
                       ) : (
                         <Copy className="w-3 h-3" />
                       )}
-                      <span>Copy</span>
+                      <span>{copiedId === m.id ? 'Copied!' : 'Copy'}</span>
                     </button>
                   )}
                 </div>
@@ -253,11 +271,13 @@ export const EngineeringCopilotModal: React.FC<EngineeringCopilotModalProps> = (
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder="Ask technical question, substitution analysis, or ETIM feature inquiry..."
+            aria-label="Ask technical question or inquiry"
             className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:ring-2 focus:ring-cyan-500 focus:outline-none"
           />
           <button
             onClick={() => handleSend()}
             disabled={!inputVal.trim() || isLoading}
+            aria-label="Send message"
             className={`p-2.5 rounded-xl text-white font-bold transition-all shadow-md ${
               !inputVal.trim() || isLoading
                 ? 'bg-slate-800 text-slate-500 cursor-not-allowed'

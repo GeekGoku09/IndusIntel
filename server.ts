@@ -9,6 +9,24 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Security: Disable Express framework fingerprinting to prevent technology disclosure
+app.disable("x-powered-by");
+
+// Security: Defensive HTTP headers middleware
+app.use((_req, res, next) => {
+  // Prevent MIME-sniffing attacks by forcing browsers to adhere to declared Content-Type
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  // Defend against Clickjacking by restricting framing to same origin
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  // Guard against referrer leakage of sensitive paths/parameters across origins
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  // Disable legacy, vulnerability-prone browser XSS auditor in favor of modern security controls
+  res.setHeader("X-XSS-Protection", "0");
+  // Restrict unused browser hardware capabilities (camera, microphone, geolocation)
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 

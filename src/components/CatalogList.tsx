@@ -12,7 +12,9 @@ import {
   Eye,
   Sliders,
   Plus,
-  Box
+  Box,
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { IndustrialProduct, IndustrySector } from '../types';
 
@@ -136,15 +138,50 @@ export const CatalogList: React.FC<CatalogListProps> = ({
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
+            aria-label="Search catalog items"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search MPN, ETIM code, brand, title..."
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+            className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search query"
+              className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 rounded p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Catalog Cards Grid */}
+      {/* Catalog Cards Grid or Empty State */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mx-auto text-slate-400">
+            <Search className="w-6 h-6" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-800">No matching products found</h3>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            {search
+              ? `No results for "${search}" in ${sectorFilter === 'ALL' ? 'all sectors' : sectorFilter}. Try adjusting your search query or filters.`
+              : `No products available in ${sectorFilter}.`}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setSectorFilter('ALL');
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-xs shadow-xs transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 active:scale-95"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset filters</span>
+          </button>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.map((product) => (
           <div
@@ -218,6 +255,7 @@ export const CatalogList: React.FC<CatalogListProps> = ({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 };

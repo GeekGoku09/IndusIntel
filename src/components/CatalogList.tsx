@@ -133,9 +133,10 @@ export const CatalogList: React.FC<CatalogListProps> = ({
 
         {/* Search Input */}
         <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" aria-hidden="true" />
           <input
             type="text"
+            aria-label="Search catalog products by MPN, ETIM code, brand, or title"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search MPN, ETIM code, brand, title..."
@@ -144,14 +145,48 @@ export const CatalogList: React.FC<CatalogListProps> = ({
         </div>
       </div>
 
-      {/* Catalog Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((product) => (
-          <div
-            key={product.id}
-            onClick={() => onSelectProduct(product)}
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-cyan-400 transition-all p-5 cursor-pointer flex flex-col justify-between space-y-4 group"
+      {/* Empty State when no results found */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-cyan-50 border border-cyan-200 flex items-center justify-center mx-auto text-cyan-600">
+            <Search className="w-6 h-6" aria-hidden="true" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-800">No matching industrial equipment found</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            {search && sectorFilter !== 'ALL'
+              ? `No products in "${sectorFilter}" match "${search}". Try adjusting your query or sector filter.`
+              : search
+              ? `No products match "${search}". Check for typos or search by MPN, standard code, or manufacturer.`
+              : `No products available in sector "${sectorFilter}".`}
+          </p>
+          <button
+            onClick={() => {
+              setSearch('');
+              setSectorFilter('ALL');
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
           >
+            Clear all filters
+          </button>
+        </div>
+      ) : (
+        /* Catalog Cards Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map((product) => (
+            <div
+              key={product.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Inspect ${product.manufacturer} ${product.productName}, MPN ${product.mpn}`}
+              onClick={() => onSelectProduct(product)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectProduct(product);
+                }
+              }}
+              className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:outline-none transition-all p-5 cursor-pointer flex flex-col justify-between space-y-4 group"
+            >
             <div className="space-y-2.5">
               {/* Brand & Status Header */}
               <div className="flex items-center justify-between">
@@ -203,21 +238,22 @@ export const CatalogList: React.FC<CatalogListProps> = ({
               </div>
             </div>
 
-            {/* Bottom Footer */}
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1 text-emerald-700 font-mono text-[11px]">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Confidence: {product.overallConfidence}%</span>
-              </div>
+              {/* Bottom Footer */}
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-1 text-emerald-700 font-mono text-[11px]">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Confidence: {product.overallConfidence}%</span>
+                </div>
 
-              <span className="text-cyan-600 font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                <span>Inspect Record</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </span>
+                <span className="text-cyan-600 font-semibold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  <span>Inspect Record</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

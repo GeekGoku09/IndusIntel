@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Share2,
   Download,
@@ -38,7 +38,12 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
-  const getExportOutput = (): string => {
+  // Performance Optimization: Memoize the serialized export payload (XML string construction,
+  // multi-property JSON stringification, and CSV escaping).
+  // Without memoization, getExportOutput() was repeatedly re-executed on every render,
+  // including transient UI state changes (copy button timer, download notice toast alerts, parent re-renders),
+  // and called redundantly across render + action handlers.
+  const exportPayload = useMemo((): string => {
     if (!selectedProduct) return '';
 
     const manufacturer = selectedProduct.manufacturer || 'Industrial Brand';
@@ -177,17 +182,17 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
     ];
 
     return [headers.join(','), row.join(',')].join('\n');
-  };
+  }, [selectedProduct, exportFormat]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(getExportOutput());
+    navigator.clipboard.writeText(exportPayload);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
     if (!selectedProduct) return;
-    const content = getExportOutput();
+    const content = exportPayload;
     let extension = 'json';
     let mime = 'application/json';
 
@@ -344,7 +349,7 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
         </div>
 
         <pre className="p-6 text-xs font-mono text-cyan-300 overflow-x-auto max-h-[500px] leading-relaxed select-all">
-          {getExportOutput() || '// No product selected'}
+          {exportPayload || '// No product selected'}
         </pre>
       </div>
     </div>

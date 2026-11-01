@@ -23,6 +23,22 @@ import {
 } from 'lucide-react';
 import { IndustrialProduct, TechnicalSpec, ValidationIssue } from '../types';
 
+/**
+ * Security: Validates that an external or user-provided URL uses a safe protocol (http/https).
+ * Prevents javascript: or data: URIs from executing arbitrary script on click (DOM XSS).
+ */
+const isSafeUrl = (url?: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 interface ProductDetailViewProps {
   product: IndustrialProduct;
   onBack: () => void;
@@ -242,11 +258,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 3D CAD STEP Ready
               </span>
             )}
-            {product.datasheetUrl && (
+            {isSafeUrl(product.datasheetUrl) && (
               <a
                 href={product.datasheetUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-cyan-700 hover:text-cyan-800 font-mono text-[11px] underline"
               >
                 <span>Datasheet</span>

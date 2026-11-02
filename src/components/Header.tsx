@@ -29,30 +29,30 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCopilot,
   isAiProcessing = false
 }) => {
-  // Performance optimization: Single O(N) pass to calculate summary metrics
-  // instead of running multiple .filter() and .reduce() array iterations on every render.
+  // ⚡ Optimization: Compute header metrics in a single O(N) pass and memoize results
   const { totalProducts, autoApproved, flaggedConflicts, avgCompleteness } = useMemo(() => {
     const safeProducts = products || [];
     const total = safeProducts.length;
     let auto = 0;
     let flagged = 0;
-    let completenessSum = 0;
+    let totalCompleteness = 0;
 
-    for (const p of safeProducts) {
+    for (let i = 0; i < total; i++) {
+      const p = safeProducts[i];
       if (p.reviewStatus === 'AUTO_APPROVED' || p.reviewStatus === 'VERIFIED_READY') {
         auto++;
-      } else if (p.reviewStatus === 'FLAGGED_CONFLICT') {
+      }
+      if (p.reviewStatus === 'FLAGGED_CONFLICT') {
         flagged++;
       }
-      completenessSum += p.completenessScore || 0;
+      totalCompleteness += p.completenessScore || 0;
     }
 
-    const avg = total > 0 ? Math.round(completenessSum / total) : 0;
     return {
       totalProducts: total,
       autoApproved: auto,
       flaggedConflicts: flagged,
-      avgCompleteness: avg
+      avgCompleteness: Math.round(totalCompleteness / (total || 1))
     };
   }, [products]);
 

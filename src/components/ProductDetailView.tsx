@@ -183,14 +183,46 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
               <span className="flex items-center gap-1">
                 <strong>MPN:</strong> {product.mpn}
                 <button
+                  type="button"
                   onClick={() => handleCopy(product.mpn, 'mpn')}
-                  className="text-slate-400 hover:text-slate-600 ml-1"
+                  aria-label={copiedField === 'mpn' ? 'Copied MPN to clipboard' : 'Copy MPN to clipboard'}
+                  title={copiedField === 'mpn' ? 'Copied!' : 'Copy MPN'}
+                  className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 cursor-pointer"
                 >
-                  <Copy className="w-3 h-3" />
+                  {copiedField === 'mpn' ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
                 </button>
+                {copiedField === 'mpn' && (
+                  <span className="text-[10px] text-emerald-600 font-semibold animate-in fade-in duration-150">
+                    Copied!
+                  </span>
+                )}
               </span>
               <span>•</span>
-              <span><strong>SKU:</strong> {product.sku}</span>
+              <span className="flex items-center gap-1">
+                <strong>SKU:</strong> {product.sku}
+                <button
+                  type="button"
+                  onClick={() => handleCopy(product.sku, 'sku')}
+                  aria-label={copiedField === 'sku' ? 'Copied SKU to clipboard' : 'Copy SKU to clipboard'}
+                  title={copiedField === 'sku' ? 'Copied!' : 'Copy SKU'}
+                  className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 cursor-pointer"
+                >
+                  {copiedField === 'sku' ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+                {copiedField === 'sku' && (
+                  <span className="text-[10px] text-emerald-600 font-semibold animate-in fade-in duration-150">
+                    Copied!
+                  </span>
+                )}
+              </span>
               <span>•</span>
               <span><strong>Series:</strong> {product.series}</span>
             </div>

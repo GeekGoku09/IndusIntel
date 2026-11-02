@@ -631,6 +631,15 @@ function generateBMEcatXML(product: any): string {
 </BMECAT>`;
 }
 
+// Security: Neutralize CSV formula injection (CWE-1236) by escaping formula trigger characters
+function sanitizeCsvCell(val: unknown = ""): string {
+  let str = String(val ?? "");
+  if (/^[=+@\-\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
 function generateAribaCSV(products: any[]): string {
   const headers = [
     "SupplierPartAuxiliaryID",
@@ -645,18 +654,24 @@ function generateAribaCSV(products: any[]): string {
     "ReviewStatus",
   ];
 
-  const rows = products.map((p) => [
-    `"${p.sku}"`,
-    `"${p.mpn}"`,
-    `"${p.manufacturer}"`,
-    `"${(p.productName || "").replace(/"/g, '""')}"`,
-    `"${p.unspscCode || ""}"`,
-    `"${p.etimClassCode || ""}"`,
-    `"${(p.specs || []).map((s: any) => `${s.label}: ${s.normalizedValue} ${s.unit}`).join("; ").replace(/"/g, '""')}"`,
-    `"${p.complianceDetails?.rohs ? "Compliant" : "No"}"`,
-    `"${p.complianceDetails?.ce ? "Compliant" : "No"}"`,
-    `"${p.reviewStatus || "APPROVED"}"`,
-  ]);
+  const rows = products.map((p) => {
+    const keySpecs = (p.specs || [])
+      .map((s: any) => `${s.label}: ${s.normalizedValue} ${s.unit}`.trim())
+      .join("; ");
+
+    return [
+      sanitizeCsvCell(p.sku),
+      sanitizeCsvCell(p.mpn),
+      sanitizeCsvCell(p.manufacturer),
+      sanitizeCsvCell(p.productName),
+      sanitizeCsvCell(p.unspscCode),
+      sanitizeCsvCell(p.etimClassCode),
+      sanitizeCsvCell(keySpecs),
+      sanitizeCsvCell(p.complianceDetails?.rohs ? "Compliant" : "No"),
+      sanitizeCsvCell(p.complianceDetails?.ce ? "Compliant" : "No"),
+      sanitizeCsvCell(p.reviewStatus || "APPROVED"),
+    ];
+  });
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
 }

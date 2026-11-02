@@ -38,6 +38,29 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
+  // Security: Escape special XML characters to prevent XML injection / malformed markup
+  const escapeXml = (unsafe: unknown = ''): string => {
+    return String(unsafe ?? '').replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '&': return '&amp;';
+        case "'": return '&apos;';
+        case '"': return '&quot;';
+        default: return c;
+      }
+    });
+  };
+
+  // Security: Neutralize CSV formula injection (CWE-1236) by escaping formula trigger characters
+  const sanitizeCsvCell = (val: unknown = ''): string => {
+    let str = String(val ?? '');
+    if (/^[=+@\-\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
+  };
+
   const getExportOutput = (): string => {
     if (!selectedProduct) return '';
 
@@ -56,29 +79,29 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
       <LANGUAGE>eng</LANGUAGE>
       <CATALOG_ID>INDUSINTEL-${new Date().getFullYear()}</CATALOG_ID>
       <CATALOG_VERSION>1.0</CATALOG_VERSION>
-      <CATALOG_NAME>${manufacturer} Digital Catalog</CATALOG_NAME>
+      <CATALOG_NAME>${escapeXml(manufacturer)} Digital Catalog</CATALOG_NAME>
     </CATALOG>
   </HEADER>
   <T_NEW_CATALOG>
     <ARTICLE mode="new">
-      <SUPPLIER_AID>${sku}</SUPPLIER_AID>
+      <SUPPLIER_AID>${escapeXml(sku)}</SUPPLIER_AID>
       <ARTICLE_DETAILS>
-        <DESCRIPTION_SHORT>${productName}</DESCRIPTION_SHORT>
-        <DESCRIPTION_LONG>${desc}</DESCRIPTION_LONG>
-        <MANUFACTURER_AID>${mpn}</MANUFACTURER_AID>
-        <MANUFACTURER_NAME>${manufacturer}</MANUFACTURER_NAME>
+        <DESCRIPTION_SHORT>${escapeXml(productName)}</DESCRIPTION_SHORT>
+        <DESCRIPTION_LONG>${escapeXml(desc)}</DESCRIPTION_LONG>
+        <MANUFACTURER_AID>${escapeXml(mpn)}</MANUFACTURER_AID>
+        <MANUFACTURER_NAME>${escapeXml(manufacturer)}</MANUFACTURER_NAME>
         <DELIVERY_TIME>3</DELIVERY_TIME>
       </ARTICLE_DETAILS>
       <ARTICLE_FEATURES>
-        <REFERENCE_FEATURE_SYSTEM_NAME>ETIM-${selectedProduct.etimClassVersion || '9.0'}</REFERENCE_FEATURE_SYSTEM_NAME>
-        <REFERENCE_FEATURE_GROUP_ID>${selectedProduct.etimClassCode || 'EC000000'}</REFERENCE_FEATURE_GROUP_ID>
+        <REFERENCE_FEATURE_SYSTEM_NAME>ETIM-${escapeXml(selectedProduct.etimClassVersion || '9.0')}</REFERENCE_FEATURE_SYSTEM_NAME>
+        <REFERENCE_FEATURE_GROUP_ID>${escapeXml(selectedProduct.etimClassCode || 'EC000000')}</REFERENCE_FEATURE_GROUP_ID>
         ${(selectedProduct.specs || [])
           .map(
             (s) => `
         <FEATURE>
-          <FNAME>${s.label || s.key}</FNAME>
-          <FVALUE>${s.normalizedValue}</FVALUE>
-          <FUNIT>${s.unit || ''}</FUNIT>
+          <FNAME>${escapeXml(s.label || s.key)}</FNAME>
+          <FVALUE>${escapeXml(s.normalizedValue)}</FVALUE>
+          <FUNIT>${escapeXml(s.unit || '')}</FUNIT>
         </FEATURE>`
           )
           .join('')}
@@ -149,7 +172,7 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
       );
     }
 
-    // CSV format
+    // CSV format with formula injection sanitization
     const headers = [
       'SupplierPartAuxiliaryID',
       'ManufacturerPartNumber',
@@ -163,17 +186,21 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
       'ReviewStatus'
     ];
 
+    const keySpecs = (selectedProduct.specs || [])
+      .map((s) => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`.trim())
+      .join('; ');
+
     const row = [
-      `"${sku}"`,
-      `"${mpn}"`,
-      `"${manufacturer}"`,
-      `"${(productName || '').replace(/"/g, '""')}"`,
-      `"${selectedProduct.unspscCode || ''}"`,
-      `"${selectedProduct.etimClassCode || ''}"`,
-      `"${(selectedProduct.specs || []).map(s => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`).join('; ').replace(/"/g, '""')}"`,
-      `"${selectedProduct.complianceDetails?.rohs ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.complianceDetails?.ce ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.reviewStatus || 'PENDING'}"`
+      sanitizeCsvCell(sku),
+      sanitizeCsvCell(mpn),
+      sanitizeCsvCell(manufacturer),
+      sanitizeCsvCell(productName),
+      sanitizeCsvCell(selectedProduct.unspscCode),
+      sanitizeCsvCell(selectedProduct.etimClassCode),
+      sanitizeCsvCell(keySpecs),
+      sanitizeCsvCell(selectedProduct.complianceDetails?.rohs ? 'Compliant' : 'No'),
+      sanitizeCsvCell(selectedProduct.complianceDetails?.ce ? 'Compliant' : 'No'),
+      sanitizeCsvCell(selectedProduct.reviewStatus || 'PENDING')
     ];
 
     return [headers.join(','), row.join(',')].join('\n');

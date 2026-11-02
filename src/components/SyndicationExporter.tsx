@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Share2,
   Download,
@@ -13,42 +13,26 @@ import {
 } from 'lucide-react';
 import { IndustrialProduct } from '../types';
 
+type ExportFormat = 'ETIM_JSON' | 'BMECAT_XML' | 'ARIBAPIM_CSV' | 'JSON_LD';
+
 interface SyndicationExporterProps {
   products: IndustrialProduct[];
   selectedProduct?: IndustrialProduct | null;
 }
 
-export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
-  products = [],
-  selectedProduct: initialSelected
-}) => {
-  const [selectedProduct, setSelectedProduct] = useState<IndustrialProduct | null>(
-    initialSelected || (products && products.length > 0 ? products[0] : null)
-  );
+// ⚡ Optimization: Moved serialization generator outside the component scope to avoid
+// recreating the function closure on every render cycle.
+function generateExportOutput(product: IndustrialProduct | null, format: ExportFormat): string {
+  if (!product) return '';
 
-  useEffect(() => {
-    if (initialSelected) {
-      setSelectedProduct(initialSelected);
-    } else if (!selectedProduct && products && products.length > 0) {
-      setSelectedProduct(products[0]);
-    }
-  }, [initialSelected, products]);
+  const manufacturer = product.manufacturer || 'Industrial Brand';
+  const sku = product.sku || 'SKU-000';
+  const mpn = product.mpn || 'MPN-000';
+  const productName = product.productName || 'Industrial Component';
+  const desc = product.marketingSummary || product.shortDescription || '';
 
-  const [exportFormat, setExportFormat] = useState<'ETIM_JSON' | 'BMECAT_XML' | 'ARIBAPIM_CSV' | 'JSON_LD'>('BMECAT_XML');
-  const [copied, setCopied] = useState<boolean>(false);
-  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
-
-  const getExportOutput = (): string => {
-    if (!selectedProduct) return '';
-
-    const manufacturer = selectedProduct.manufacturer || 'Industrial Brand';
-    const sku = selectedProduct.sku || 'SKU-000';
-    const mpn = selectedProduct.mpn || 'MPN-000';
-    const productName = selectedProduct.productName || 'Industrial Component';
-    const desc = selectedProduct.marketingSummary || selectedProduct.shortDescription || '';
-
-    if (exportFormat === 'BMECAT_XML') {
-      return `<?xml version="1.0" encoding="UTF-8"?>
+  if (format === 'BMECAT_XML') {
+    return `<?xml version="1.0" encoding="UTF-8"?>
 <BMECAT version="2005" xmlns="http://www.bmecat.org/bmecat/2005">
   <HEADER>
     <GENERATOR_INFO>IndusIntel AI Industrial Product Intelligence Engine</GENERATOR_INFO>
@@ -70,9 +54,9 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
         <DELIVERY_TIME>3</DELIVERY_TIME>
       </ARTICLE_DETAILS>
       <ARTICLE_FEATURES>
-        <REFERENCE_FEATURE_SYSTEM_NAME>ETIM-${selectedProduct.etimClassVersion || '9.0'}</REFERENCE_FEATURE_SYSTEM_NAME>
-        <REFERENCE_FEATURE_GROUP_ID>${selectedProduct.etimClassCode || 'EC000000'}</REFERENCE_FEATURE_GROUP_ID>
-        ${(selectedProduct.specs || [])
+        <REFERENCE_FEATURE_SYSTEM_NAME>ETIM-${product.etimClassVersion || '9.0'}</REFERENCE_FEATURE_SYSTEM_NAME>
+        <REFERENCE_FEATURE_GROUP_ID>${product.etimClassCode || 'EC000000'}</REFERENCE_FEATURE_GROUP_ID>
+        ${(product.specs || [])
           .map(
             (s) => `
         <FEATURE>
@@ -86,108 +70,137 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
     </ARTICLE>
   </T_NEW_CATALOG>
 </BMECAT>`;
-    }
+  }
 
-    if (exportFormat === 'ETIM_JSON') {
-      return JSON.stringify(
-        {
-          etimClassification: {
-            version: selectedProduct.etimClassVersion || '9.0',
-            classCode: selectedProduct.etimClassCode || 'EC000000',
-            classDescription: selectedProduct.etimClassTitle || 'Industrial standard component',
-            unspsc: {
-              code: selectedProduct.unspscCode || '',
-              title: selectedProduct.unspscTitle || ''
-            }
-          },
-          identification: {
-            sku: sku,
-            mpn: mpn,
-            manufacturer: manufacturer,
-            series: selectedProduct.series || ''
-          },
-          features: (selectedProduct.specs || []).map((s) => ({
-            featureCode: s.etimFeatureCode || 'EF_STANDARD',
-            featureDescription: s.label || s.key,
-            value: s.normalizedValue,
-            unit: s.unit || '',
-            rawSource: s.rawValue || '',
-            confidence: s.evidence?.confidence || 0.98,
-            traceability: s.evidence?.reasoning || 'Extracted and verified'
-          })),
-          auditTrail: selectedProduct.auditTrail || []
+  if (format === 'ETIM_JSON') {
+    return JSON.stringify(
+      {
+        etimClassification: {
+          version: product.etimClassVersion || '9.0',
+          classCode: product.etimClassCode || 'EC000000',
+          classDescription: product.etimClassTitle || 'Industrial standard component',
+          unspsc: {
+            code: product.unspscCode || '',
+            title: product.unspscTitle || ''
+          }
         },
-        null,
-        2
-      );
-    }
-
-    if (exportFormat === 'JSON_LD') {
-      return JSON.stringify(
-        {
-          '@context': 'https://schema.org/',
-          '@type': 'Product',
-          name: productName,
-          image: selectedProduct.imageUrl,
-          description: desc,
+        identification: {
           sku: sku,
           mpn: mpn,
-          brand: {
-            '@type': 'Brand',
-            name: manufacturer
-          },
-          category: selectedProduct.category || selectedProduct.sector || 'Industrial Equipment',
-          additionalProperty: (selectedProduct.specs || []).map((s) => ({
-            '@type': 'PropertyValue',
-            name: s.label || s.key,
-            value: `${s.normalizedValue} ${s.unit || ''}`.trim(),
-            unitCode: s.unit || ''
-          }))
+          manufacturer: manufacturer,
+          series: product.series || ''
         },
-        null,
-        2
-      );
+        features: (product.specs || []).map((s) => ({
+          featureCode: s.etimFeatureCode || 'EF_STANDARD',
+          featureDescription: s.label || s.key,
+          value: s.normalizedValue,
+          unit: s.unit || '',
+          rawSource: s.rawValue || '',
+          confidence: s.evidence?.confidence || 0.98,
+          traceability: s.evidence?.reasoning || 'Extracted and verified'
+        })),
+        auditTrail: product.auditTrail || []
+      },
+      null,
+      2
+    );
+  }
+
+  if (format === 'JSON_LD') {
+    return JSON.stringify(
+      {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: productName,
+        image: product.imageUrl,
+        description: desc,
+        sku: sku,
+        mpn: mpn,
+        brand: {
+          '@type': 'Brand',
+          name: manufacturer
+        },
+        category: product.category || product.sector || 'Industrial Equipment',
+        additionalProperty: (product.specs || []).map((s) => ({
+          '@type': 'PropertyValue',
+          name: s.label || s.key,
+          value: `${s.normalizedValue} ${s.unit || ''}`.trim(),
+          unitCode: s.unit || ''
+        }))
+      },
+      null,
+      2
+    );
+  }
+
+  // CSV format
+  const headers = [
+    'SupplierPartAuxiliaryID',
+    'ManufacturerPartNumber',
+    'ManufacturerName',
+    'ItemDescription',
+    'UNSPSC',
+    'ETIM_Class',
+    'KeySpecifications',
+    'Compliance_RoHS',
+    'Compliance_CE',
+    'ReviewStatus'
+  ];
+
+  const row = [
+    `"${sku}"`,
+    `"${mpn}"`,
+    `"${manufacturer}"`,
+    `"${(productName || '').replace(/"/g, '""')}"`,
+    `"${product.unspscCode || ''}"`,
+    `"${product.etimClassCode || ''}"`,
+    `"${(product.specs || []).map(s => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`).join('; ').replace(/"/g, '""')}"`,
+    `"${product.complianceDetails?.rohs ? 'Compliant' : 'No'}"`,
+    `"${product.complianceDetails?.ce ? 'Compliant' : 'No'}"`,
+    `"${product.reviewStatus || 'PENDING'}"`
+  ];
+
+  return [headers.join(','), row.join(',')].join('\n');
+}
+
+export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
+  products = [],
+  selectedProduct: initialSelected
+}) => {
+  const [selectedProduct, setSelectedProduct] = useState<IndustrialProduct | null>(
+    initialSelected || (products && products.length > 0 ? products[0] : null)
+  );
+
+  useEffect(() => {
+    if (initialSelected) {
+      setSelectedProduct(initialSelected);
+    } else if (!selectedProduct && products && products.length > 0) {
+      setSelectedProduct(products[0]);
     }
+  }, [initialSelected, products]);
 
-    // CSV format
-    const headers = [
-      'SupplierPartAuxiliaryID',
-      'ManufacturerPartNumber',
-      'ManufacturerName',
-      'ItemDescription',
-      'UNSPSC',
-      'ETIM_Class',
-      'KeySpecifications',
-      'Compliance_RoHS',
-      'Compliance_CE',
-      'ReviewStatus'
-    ];
+  const [exportFormat, setExportFormat] = useState<ExportFormat>('BMECAT_XML');
+  const [copied, setCopied] = useState<boolean>(false);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
 
-    const row = [
-      `"${sku}"`,
-      `"${mpn}"`,
-      `"${manufacturer}"`,
-      `"${(productName || '').replace(/"/g, '""')}"`,
-      `"${selectedProduct.unspscCode || ''}"`,
-      `"${selectedProduct.etimClassCode || ''}"`,
-      `"${(selectedProduct.specs || []).map(s => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`).join('; ').replace(/"/g, '""')}"`,
-      `"${selectedProduct.complianceDetails?.rohs ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.complianceDetails?.ce ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.reviewStatus || 'PENDING'}"`
-    ];
-
-    return [headers.join(','), row.join(',')].join('\n');
-  };
+  // ⚡ Optimization: Memoize the serialized output payload.
+  // Prevents re-running complex multi-branch stringifications, JSON.stringify formatting,
+  // and array mappings on timer state changes (e.g. copied/downloadNotice) or parent re-renders.
+  const exportPayload = useMemo(
+    () => generateExportOutput(selectedProduct, exportFormat),
+    [selectedProduct, exportFormat]
+  );
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(getExportOutput());
+    if (!exportPayload) return;
+    navigator.clipboard.writeText(exportPayload);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    if (!selectedProduct) return;
-    const content = getExportOutput();
+    if (!selectedProduct || !exportPayload) return;
+    const content = exportPayload;
     let extension = 'json';
     let mime = 'application/json';
 
@@ -344,7 +357,7 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
         </div>
 
         <pre className="p-6 text-xs font-mono text-cyan-300 overflow-x-auto max-h-[500px] leading-relaxed select-all">
-          {getExportOutput() || '// No product selected'}
+          {exportPayload || '// No product selected'}
         </pre>
       </div>
     </div>

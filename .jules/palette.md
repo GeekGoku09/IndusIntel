@@ -1,0 +1,3 @@
+## 2026-11-03 - Filter Empty State Recovery Pattern
+**Learning:** In complex data catalog filtering views with combined sector and text search filters, zero-result queries leave users stranded if there is no explicit call-to-action to recover. Providing an accessible empty state with a 1-click "Reset filters" recovery action alongside an inline input clear button eliminates user dead-ends without requiring manual backspacing or filter re-selection.
+**Action:** Always pair multi-criteria search/filter views with a clear recovery button in the empty state and accessible clear buttons inside search inputs.

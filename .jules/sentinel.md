@@ -1,0 +1,4 @@
+## 2026-11-03 - External URL Protocol Validation in Anchor Hrefs
+**Vulnerability:** External URLs stored on product records (such as `product.datasheetUrl`, which can originate from AI extractions or user inputs) were rendered directly into an `<a>` tag's `href` attribute without scheme verification. Malicious or hallucinated inputs with `javascript:` or `data:` schemes can trigger client-side script execution (XSS) when clicked.
+**Learning:** React JSX attributes like `href` do not automatically sanitize `javascript:` pseudo-protocols. Any user- or AI-provided URL rendered as an anchor href is an injection vector unless explicitly validated against allowed schemes.
+**Prevention:** Always parse and validate external URLs using `new URL(url)` before passing to `href`, strictly enforcing `http:` or `https:` protocols, and pair external links with `rel="noopener noreferrer"`.

@@ -23,6 +23,18 @@ import {
 } from 'lucide-react';
 import { IndustrialProduct, TechnicalSpec, ValidationIssue } from '../types';
 
+// Security helper: Validate external URLs to prevent XSS via javascript: or data: pseudo-protocols
+function getSafeExternalUrl(url?: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
 interface ProductDetailViewProps {
   product: IndustrialProduct;
   onBack: () => void;
@@ -114,6 +126,8 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
     onUpdateProduct(updated);
     setIsEditing(false);
   };
+
+  const safeDatasheetUrl = getSafeExternalUrl(product.datasheetUrl);
 
   return (
     <div id="product-detail-view" className="space-y-6">
@@ -242,11 +256,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 3D CAD STEP Ready
               </span>
             )}
-            {product.datasheetUrl && (
+            {safeDatasheetUrl && (
               <a
-                href={product.datasheetUrl}
+                href={safeDatasheetUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-cyan-700 hover:text-cyan-800 font-mono text-[11px] underline"
               >
                 <span>Datasheet</span>

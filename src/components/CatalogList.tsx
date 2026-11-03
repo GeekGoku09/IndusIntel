@@ -12,7 +12,9 @@ import {
   Eye,
   Sliders,
   Plus,
-  Box
+  Box,
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { IndustrialProduct, IndustrySector } from '../types';
 
@@ -141,18 +143,53 @@ export const CatalogList: React.FC<CatalogListProps> = ({
 
         {/* Search Input */}
         <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Search catalog products"
             placeholder="Search MPN, ETIM code, brand, title..."
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+            className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search input"
+              className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 focus-visible:ring-2 focus-visible:ring-cyan-500 rounded p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Catalog Cards Grid */}
+      {/* Catalog Cards Grid or Empty State */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm space-y-4">
+          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
+            <Search className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="font-bold text-sm text-slate-900">No matching industrial equipment found</h3>
+            <p className="text-xs text-slate-500 max-w-md mx-auto">
+              We couldn't find any products matching your current search query or sector filter. Try adjusting your keywords or reset all filters.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setSectorFilter('ALL');
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white font-semibold text-xs shadow-sm transition-all focus-visible:ring-2 focus-visible:ring-cyan-500 focus:outline-none"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset filters</span>
+          </button>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.map((product) => (
           <div
@@ -226,6 +263,7 @@ export const CatalogList: React.FC<CatalogListProps> = ({
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 };

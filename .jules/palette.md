@@ -1,0 +1,3 @@
+## 2025-05-22 - Modal Accessibility & Keyboard Dismiss Pattern
+**Learning:** Fixed modal overlays (such as technical copilots, diff viewers, and inspectors) require explicit keyboard dismissibility (`Escape` key handling) and standard ARIA dialog attributes (`role="dialog"`, `aria-modal="true"`, `aria-labelledby`). Without these and accessible `aria-label`s on icon-only controls (e.g., Close `X`, Send icon), keyboard and screen-reader users are trapped or lose context.
+**Action:** When implementing modal dialogs, always attach an `Escape` key event listener in an effect and provide `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, and clear `aria-label` and `focus-visible` ring styles on icon buttons.

@@ -9,6 +9,19 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Security: Disable X-Powered-By to prevent framework fingerprinting
+app.disable("x-powered-by");
+
+// Security: Enforce defensive HTTP security headers on all responses
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("X-XSS-Protection", "0");
+  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=()");
+  next();
+});
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
@@ -165,8 +178,9 @@ Return ONLY a valid JSON object matching the IndustrialProduct structure.`;
 app.post("/api/vision-extract", async (req, res) => {
   const { imageBase64, mimeType = "image/jpeg", userNotes = "" } = req.body;
 
-  if (!imageBase64) {
-    return res.status(400).json({ error: "Missing imageBase64" });
+  // Security: Input validation to ensure payload structure and prevent memory exhaustion
+  if (!imageBase64 || typeof imageBase64 !== "string" || imageBase64.length > 35_000_000) {
+    return res.status(400).json({ error: "Invalid or oversized imageBase64 parameter" });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
@@ -232,6 +246,12 @@ Return ONLY a valid JSON object matching the IndustrialProduct structure.`,
  */
 app.post("/api/copilot-chat", async (req, res) => {
   const { messages = [], activeProductContext, catalogSummary } = req.body;
+
+  // Security: Validate messages parameter structure and limit message history length
+  if (!Array.isArray(messages) || messages.length > 50) {
+    return res.status(400).json({ error: "Invalid messages payload or message history too long" });
+  }
+
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (apiKey) {
@@ -327,7 +347,9 @@ app.post("/api/syndicate-export", (req, res) => {
       return res.json(etimPayload);
     }
   } catch (err: any) {
-    return res.status(500).json({ error: "Export failed", details: err.message });
+    // Security: Log error server-side but do not expose raw error stack/internals to client
+    console.error("Syndication export failure:", err);
+    return res.status(500).json({ error: "Export failed due to internal processing error" });
   }
 });
 

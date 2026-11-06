@@ -31,6 +31,20 @@ interface ProductDetailViewProps {
   onOpenCopilotWithContext: (product: IndustrialProduct) => void;
 }
 
+/**
+ * Security: Validates that URLs use safe protocols (http/https) to prevent
+ * javascript: pseudo-protocol XSS or other dangerous scheme injection.
+ */
+function isSafeUrl(url?: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   product,
   onBack,
@@ -242,11 +256,11 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 3D CAD STEP Ready
               </span>
             )}
-            {product.datasheetUrl && (
+            {product.datasheetUrl && isSafeUrl(product.datasheetUrl) && (
               <a
                 href={product.datasheetUrl}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-cyan-700 hover:text-cyan-800 font-mono text-[11px] underline"
               >
                 <span>Datasheet</span>

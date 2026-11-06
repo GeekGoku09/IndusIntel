@@ -1,0 +1,4 @@
+## 2025-05-22 - Dangerous URL Schemes and Reverse Tabnabbing in AI/User-Supplied Links
+**Vulnerability:** External URLs (e.g. `datasheetUrl`) ingested via AI multimodal extraction, catalog scraping, or user input presets were rendered directly into `<a href={product.datasheetUrl} target="_blank" rel="noreferrer">` without validating the URL scheme or specifying `noopener`. If untrusted input containing `javascript:...` or `data:...` was provided, clicking the link could execute arbitrary script in the user's origin. Additionally, missing `noopener` could allow window.opener tampering in older browsers/environments.
+**Learning:** Any catalog field destined for `href` attributes must be validated against an explicit whitelist of safe web protocols (`http:` and `https:`).
+**Prevention:** Use an `isSafeUrl` validator before rendering clickable anchor elements with dynamic URLs, and always specify `rel="noopener noreferrer"`.

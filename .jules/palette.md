@@ -1,0 +1,3 @@
+## 2025-05-22 - Modal Accessibility & Keyboard Dismissal Pattern
+**Learning:** Modal dialogs built with standard `div` elements often lack essential screen reader and keyboard accessibility semantics: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, and `Escape` key dismiss listeners. Additionally, icon-only buttons (`X` close, paper airplane submit) leave screen reader users without context unless explicit `aria-label`s are attached.
+**Action:** When implementing or touching modal overlays in this application, ensure the root overlay includes `role="dialog"`, `aria-modal="true"`, and links to the modal title via `aria-labelledby`, attach keyboard listeners for `Escape` dismissal, and provide explicit `aria-label`s on icon-only actions.

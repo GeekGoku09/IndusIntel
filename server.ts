@@ -631,6 +631,18 @@ function generateBMEcatXML(product: any): string {
 </BMECAT>`;
 }
 
+/**
+ * Sanitizes a field against CSV/Formula Injection (CWE-1236).
+ * Neutralizes spreadsheet formula triggers (=, +, -, @, \t, \r) by prepending a single quote.
+ */
+function sanitizeCsvField(val: unknown): string {
+  let str = val === null || val === undefined ? "" : String(val);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = `'${str}`;
+  }
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
 function generateAribaCSV(products: any[]): string {
   const headers = [
     "SupplierPartAuxiliaryID",
@@ -646,16 +658,16 @@ function generateAribaCSV(products: any[]): string {
   ];
 
   const rows = products.map((p) => [
-    `"${p.sku}"`,
-    `"${p.mpn}"`,
-    `"${p.manufacturer}"`,
-    `"${(p.productName || "").replace(/"/g, '""')}"`,
-    `"${p.unspscCode || ""}"`,
-    `"${p.etimClassCode || ""}"`,
-    `"${(p.specs || []).map((s: any) => `${s.label}: ${s.normalizedValue} ${s.unit}`).join("; ").replace(/"/g, '""')}"`,
-    `"${p.complianceDetails?.rohs ? "Compliant" : "No"}"`,
-    `"${p.complianceDetails?.ce ? "Compliant" : "No"}"`,
-    `"${p.reviewStatus || "APPROVED"}"`,
+    sanitizeCsvField(p.sku),
+    sanitizeCsvField(p.mpn),
+    sanitizeCsvField(p.manufacturer),
+    sanitizeCsvField(p.productName),
+    sanitizeCsvField(p.unspscCode),
+    sanitizeCsvField(p.etimClassCode),
+    sanitizeCsvField((p.specs || []).map((s: any) => `${s.label}: ${s.normalizedValue} ${s.unit}`).join("; ")),
+    sanitizeCsvField(p.complianceDetails?.rohs ? "Compliant" : "No"),
+    sanitizeCsvField(p.complianceDetails?.ce ? "Compliant" : "No"),
+    sanitizeCsvField(p.reviewStatus || "APPROVED"),
   ]);
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

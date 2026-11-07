@@ -1,0 +1,3 @@
+## 2025-05-18 - Accessible Dialog Pattern for Fullscreen Overlays
+**Learning:** Modal dialogs in technical dashboards often trap keyboard-only and screen reader users when missing the standard `Escape` key event listener and `role="dialog"` / `aria-modal="true"` / `aria-labelledby` semantics. Additionally, hover-only copy buttons (`group-hover:opacity-100`) must include `focus:opacity-100 focus-visible:ring-1` to remain accessible during keyboard tab traversal.
+**Action:** Always pair `isOpen` state with an Escape listener cleanup and verify all child action buttons are visible and styled on focus.

@@ -149,7 +149,15 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
       );
     }
 
-    // CSV format
+    // CSV format - sanitize all fields against CSV/Formula Injection (CWE-1236)
+    const sanitizeCsvField = (val: unknown): string => {
+      let str = val === null || val === undefined ? '' : String(val);
+      if (/^[=+\-@\t\r]/.test(str)) {
+        str = `'${str}`;
+      }
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
     const headers = [
       'SupplierPartAuxiliaryID',
       'ManufacturerPartNumber',
@@ -164,16 +172,16 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
     ];
 
     const row = [
-      `"${sku}"`,
-      `"${mpn}"`,
-      `"${manufacturer}"`,
-      `"${(productName || '').replace(/"/g, '""')}"`,
-      `"${selectedProduct.unspscCode || ''}"`,
-      `"${selectedProduct.etimClassCode || ''}"`,
-      `"${(selectedProduct.specs || []).map(s => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`).join('; ').replace(/"/g, '""')}"`,
-      `"${selectedProduct.complianceDetails?.rohs ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.complianceDetails?.ce ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.reviewStatus || 'PENDING'}"`
+      sanitizeCsvField(sku),
+      sanitizeCsvField(mpn),
+      sanitizeCsvField(manufacturer),
+      sanitizeCsvField(productName),
+      sanitizeCsvField(selectedProduct.unspscCode),
+      sanitizeCsvField(selectedProduct.etimClassCode),
+      sanitizeCsvField((selectedProduct.specs || []).map(s => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`).join('; ')),
+      sanitizeCsvField(selectedProduct.complianceDetails?.rohs ? 'Compliant' : 'No'),
+      sanitizeCsvField(selectedProduct.complianceDetails?.ce ? 'Compliant' : 'No'),
+      sanitizeCsvField(selectedProduct.reviewStatus || 'PENDING')
     ];
 
     return [headers.join(','), row.join(',')].join('\n');

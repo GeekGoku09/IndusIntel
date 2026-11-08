@@ -9,6 +9,14 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
+// Security hardening: reduce server fingerprinting and apply baseline security headers
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  next();
+});
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
@@ -631,6 +639,17 @@ function generateBMEcatXML(product: any): string {
 </BMECAT>`;
 }
 
+/**
+ * Sanitizes cell content against CSV/formula injection (CWE-1236).
+ * Prepends a single quote if the field begins with formula trigger characters: = + - @ \t \r.
+ */
+function sanitizeCsvCell(value: any): string {
+  const str = String(value ?? "");
+  const trimmed = str.trimStart();
+  const safeStr = /^[=+\-@\t\r]/.test(trimmed) ? `'${str}` : str;
+  return `"${safeStr.replace(/"/g, '""')}"`;
+}
+
 function generateAribaCSV(products: any[]): string {
   const headers = [
     "SupplierPartAuxiliaryID",
@@ -646,16 +665,16 @@ function generateAribaCSV(products: any[]): string {
   ];
 
   const rows = products.map((p) => [
-    `"${p.sku}"`,
-    `"${p.mpn}"`,
-    `"${p.manufacturer}"`,
-    `"${(p.productName || "").replace(/"/g, '""')}"`,
-    `"${p.unspscCode || ""}"`,
-    `"${p.etimClassCode || ""}"`,
-    `"${(p.specs || []).map((s: any) => `${s.label}: ${s.normalizedValue} ${s.unit}`).join("; ").replace(/"/g, '""')}"`,
-    `"${p.complianceDetails?.rohs ? "Compliant" : "No"}"`,
-    `"${p.complianceDetails?.ce ? "Compliant" : "No"}"`,
-    `"${p.reviewStatus || "APPROVED"}"`,
+    sanitizeCsvCell(p.sku),
+    sanitizeCsvCell(p.mpn),
+    sanitizeCsvCell(p.manufacturer),
+    sanitizeCsvCell(p.productName),
+    sanitizeCsvCell(p.unspscCode),
+    sanitizeCsvCell(p.etimClassCode),
+    sanitizeCsvCell((p.specs || []).map((s: any) => `${s.label}: ${s.normalizedValue} ${s.unit}`).join("; ")),
+    sanitizeCsvCell(p.complianceDetails?.rohs ? "Compliant" : "No"),
+    sanitizeCsvCell(p.complianceDetails?.ce ? "Compliant" : "No"),
+    sanitizeCsvCell(p.reviewStatus || "APPROVED"),
   ]);
 
   return [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

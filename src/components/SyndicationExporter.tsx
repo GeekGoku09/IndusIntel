@@ -149,7 +149,14 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
       );
     }
 
-    // CSV format
+    // CSV format - sanitize formula injection triggers (=, +, -, @, \t, \r)
+    const sanitizeCsvCell = (val: unknown): string => {
+      const str = String(val ?? '');
+      const trimmed = str.trimStart();
+      const safe = /^[=+\-@\t\r]/.test(trimmed) ? `'${str}` : str;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
+
     const headers = [
       'SupplierPartAuxiliaryID',
       'ManufacturerPartNumber',
@@ -164,16 +171,16 @@ export const SyndicationExporter: React.FC<SyndicationExporterProps> = ({
     ];
 
     const row = [
-      `"${sku}"`,
-      `"${mpn}"`,
-      `"${manufacturer}"`,
-      `"${(productName || '').replace(/"/g, '""')}"`,
-      `"${selectedProduct.unspscCode || ''}"`,
-      `"${selectedProduct.etimClassCode || ''}"`,
-      `"${(selectedProduct.specs || []).map(s => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`).join('; ').replace(/"/g, '""')}"`,
-      `"${selectedProduct.complianceDetails?.rohs ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.complianceDetails?.ce ? 'Compliant' : 'No'}"`,
-      `"${selectedProduct.reviewStatus || 'PENDING'}"`
+      sanitizeCsvCell(sku),
+      sanitizeCsvCell(mpn),
+      sanitizeCsvCell(manufacturer),
+      sanitizeCsvCell(productName),
+      sanitizeCsvCell(selectedProduct.unspscCode),
+      sanitizeCsvCell(selectedProduct.etimClassCode),
+      sanitizeCsvCell((selectedProduct.specs || []).map(s => `${s.label || s.key}: ${s.normalizedValue} ${s.unit || ''}`).join('; ')),
+      sanitizeCsvCell(selectedProduct.complianceDetails?.rohs ? 'Compliant' : 'No'),
+      sanitizeCsvCell(selectedProduct.complianceDetails?.ce ? 'Compliant' : 'No'),
+      sanitizeCsvCell(selectedProduct.reviewStatus || 'PENDING')
     ];
 
     return [headers.join(','), row.join(',')].join('\n');

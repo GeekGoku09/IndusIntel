@@ -231,69 +231,77 @@ Return ONLY a valid JSON object matching the IndustrialProduct structure.`,
  * Engineering AI Copilot & Technical Selection Assistant Endpoint
  */
 app.post("/api/copilot-chat", async (req, res) => {
-  const { messages = [], activeProductContext, catalogSummary } = req.body;
-  const apiKey = process.env.GEMINI_API_KEY;
+  try {
+    const { messages, activeProductContext, catalogSummary } = req.body || {};
 
-  if (apiKey) {
-    try {
-      const ai = getGeminiClient();
-      const systemInstruction = `You are the IndusIntel AI Engineering Copilot, an elite technical advisor in industrial commerce, standard components (ETIM 9.0, ISO, DIN, ANSI, NEMA, IEC), component substitution, retrofit engineering, and procurement RFQ creation.
+    // Security: Validate messages array to prevent unhandled TypeError / server DoS crash
+    if (messages !== undefined && (!Array.isArray(messages) || messages.some((m) => typeof m !== "object" || m === null))) {
+      return res.status(400).json({ error: "Invalid messages format: expected array of message objects" });
+    }
+
+    const safeMessages: Array<{ role?: string; content?: string }> = Array.isArray(messages) ? messages : [];
+    const lastUserMsg = safeMessages[safeMessages.length - 1]?.content || "Hello";
+    const apiKey = process.env.GEMINI_API_KEY;
+
+    if (apiKey) {
+      try {
+        const ai = getGeminiClient();
+        const systemInstruction = `You are the IndusIntel AI Engineering Copilot, an elite technical advisor in industrial commerce, standard components (ETIM 9.0, ISO, DIN, ANSI, NEMA, IEC), component substitution, retrofit engineering, and procurement RFQ creation.
 You have live access to the user's active product catalog:
 ${activeProductContext ? `Active Product Under Inspection: ${JSON.stringify(activeProductContext)}` : ""}
 ${catalogSummary ? `Catalog Summary: ${JSON.stringify(catalogSummary)}` : ""}
 
 Provide concise, highly authoritative, mathematically accurate engineering answers. Format with clear Markdown, bullet points, spec comparison tables, and compliance considerations (ATEX, RoHS, CE, IP ratings).`;
 
-      const lastUserMsg = messages[messages.length - 1]?.content || "Hello";
+        // Try gemini-2.5-flash first, fallback to gemini-2.5-flash-lite and gemini-3.7-flash
+        const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.7-flash"];
+        let responseText = "";
 
-      // Try gemini-2.5-flash first, fallback to gemini-2.5-flash-lite and gemini-3.7-flash
-      const candidateModels = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.7-flash"];
-      let responseText = "";
+        for (const model of candidateModels) {
+          try {
+            const chat = ai.chats.create({
+              model,
+              config: {
+                systemInstruction,
+              },
+            });
 
-      for (const model of candidateModels) {
-        try {
-          const chat = ai.chats.create({
-            model,
-            config: {
-              systemInstruction,
-            },
-          });
-
-          for (let i = 0; i < messages.length - 1; i++) {
-            if (messages[i].role === "user") {
-              await chat.sendMessage({ message: messages[i].content });
+            for (let i = 0; i < safeMessages.length - 1; i++) {
+              if (safeMessages[i].role === "user" && safeMessages[i].content) {
+                await chat.sendMessage({ message: safeMessages[i].content! });
+              }
             }
-          }
 
-          const response = await chat.sendMessage({ message: lastUserMsg });
-          if (response && response.text) {
-            responseText = response.text;
-            break;
+            const response = await chat.sendMessage({ message: lastUserMsg });
+            if (response && response.text) {
+              responseText = response.text;
+              break;
+            }
+          } catch (chatErr: any) {
+            console.warn(`Copilot model ${model} error:`, chatErr.message);
           }
-        } catch (chatErr: any) {
-          console.warn(`Copilot model ${model} error:`, chatErr.message);
         }
-      }
 
-      if (responseText) {
-        return res.json({ reply: responseText });
-      }
+        if (responseText) {
+          return res.json({ reply: responseText });
+        }
 
-      // If model chat failed, provide context-aware engineering analysis
+        // If model chat failed, provide context-aware engineering analysis
+        const dynamicReply = generateCopilotFallbackResponse(lastUserMsg, activeProductContext);
+        return res.json({ reply: dynamicReply, simulated: true });
+      } catch (err: any) {
+        console.warn("Copilot handler caught error, providing intelligent response:", err.message);
+        const dynamicReply = generateCopilotFallbackResponse(lastUserMsg, activeProductContext);
+        return res.json({ reply: dynamicReply, simulated: true });
+      }
+    } else {
       const dynamicReply = generateCopilotFallbackResponse(lastUserMsg, activeProductContext);
       return res.json({ reply: dynamicReply, simulated: true });
-    } catch (err: any) {
-      console.warn("Copilot handler caught error, providing intelligent response:", err.message);
-      const dynamicReply = generateCopilotFallbackResponse(
-        messages[messages.length - 1]?.content || "",
-        activeProductContext
-      );
-      return res.json({ reply: dynamicReply, simulated: true });
     }
-  } else {
-    const lastUserMsg = messages[messages.length - 1]?.content || "Hello";
-    const dynamicReply = generateCopilotFallbackResponse(lastUserMsg, activeProductContext);
-    return res.json({ reply: dynamicReply, simulated: true });
+  } catch (err: any) {
+    // Top-level fail-safe: log securely on server, return generic error without leaking internals/stack trace
+    console.error("Unexpected error in /api/copilot-chat:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
 });
 

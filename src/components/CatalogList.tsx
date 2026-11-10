@@ -12,7 +12,9 @@ import {
   Eye,
   Sliders,
   Plus,
-  Box
+  Box,
+  X,
+  PackageSearch
 } from 'lucide-react';
 import { IndustrialProduct, IndustrySector } from '../types';
 
@@ -141,25 +143,68 @@ export const CatalogList: React.FC<CatalogListProps> = ({
 
         {/* Search Input */}
         <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+          <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400 pointer-events-none" aria-hidden="true" />
           <input
             type="text"
+            aria-label="Search catalog products"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search MPN, ETIM code, brand, title..."
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+            className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
           />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search text"
+              className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 rounded p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Catalog Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filtered.map((product) => (
-          <div
-            key={product.id}
-            onClick={() => onSelectProduct(product)}
-            className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-cyan-400 transition-all p-5 cursor-pointer flex flex-col justify-between space-y-4 group"
+      {/* Catalog Cards Grid or Empty State */}
+      {filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center flex flex-col items-center justify-center space-y-3">
+          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400">
+            <PackageSearch className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">No matching industrial equipment found</h3>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+              We couldn't find any products matching your current query or sector filter. Try adjusting your search keywords.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setSectorFilter('ALL');
+            }}
+            className="px-4 py-2 rounded-lg bg-cyan-50 hover:bg-cyan-100 text-cyan-800 font-semibold text-xs transition-colors border border-cyan-200 focus-visible:ring-2 focus-visible:ring-cyan-500"
           >
+            Reset search and filters
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filtered.map((product) => (
+            <div
+              key={product.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`Inspect ${product.manufacturer} ${product.mpn} ${product.productName}`}
+              onClick={() => onSelectProduct(product)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelectProduct(product);
+                }
+              }}
+              className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-cyan-400 focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:outline-none transition-all p-5 cursor-pointer flex flex-col justify-between space-y-4 group"
+            >
             <div className="space-y-2.5">
               {/* Brand & Status Header */}
               <div className="flex items-center justify-between">
@@ -225,7 +270,8 @@ export const CatalogList: React.FC<CatalogListProps> = ({
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

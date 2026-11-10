@@ -1,0 +1,4 @@
+## 2026-11-10 - Express Security Headers and Technology Fingerprint Protection
+**Vulnerability:** Express server was exposing the default `X-Powered-By: Express` header and lacked essential defensive security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`, and `X-XSS-Protection: 0`), leaving the application susceptible to technology stack fingerprinting, MIME sniffing, and clickjacking attacks.
+**Learning:** In hybrid Express + Vite apps without Helmet or reverse proxy headers configured, raw Express instances leave `x-powered-by` enabled by default and omit defensive headers on both API endpoints and static fallbacks.
+**Prevention:** Explicitly disable `app.disable("x-powered-by")` immediately after instantiating Express and attach a top-level security headers middleware before any routes or body parsers.
